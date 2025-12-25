@@ -2,15 +2,19 @@
 {
     public abstract class Entity
     {
-        public Position WorldPos { get; set; } = new Position();
+        public Point WorldPos { get; set; } = new();
 
         public double Width { get; set; }
         public double Height { get; set; }
+
+        public bool CanCollide { get; set; } = false;
 
         public Border Visual = new();
 
         public double X => WorldPos.X;
         public double Y => WorldPos.Y;
+
+        public Size Size => new(Width, Height);
 
         public double Area => Width * Height;
         public double Parameter => 2 * (Width + Height);

@@ -6,6 +6,8 @@
 
         public Rock()
         {
+            CanCollide = true;
+
             Visual.Background = Brushes.Gray;
             Visual.BorderBrush = Brushes.LightGray;
 

@@ -3,7 +3,6 @@ global using System.Windows.Controls;
 global using System.Windows.Input;
 global using System.Windows.Media;
 using System.Text;
-using System.Windows.Threading;
 
 namespace CombatWordle
 {
@@ -82,8 +81,6 @@ namespace CombatWordle
             await RunGame();
         }
 
-        bool canCheck = true;
-
         public MainWindow()
         {
             InitializeComponent();
@@ -96,14 +93,6 @@ namespace CombatWordle
             player = game.Player;
             map = game.Map;
             GameCanvas.Children.Add(player.Visual);
-
-            var timer = new DispatcherTimer();
-            timer.Interval = TimeSpan.FromSeconds(1);
-            timer.Tick += (s, ev) =>
-            {
-                canCheck = true;
-            };
-            timer.Start();
 
             StartFirstMode();
         }
@@ -126,71 +115,63 @@ namespace CombatWordle
                 dy = dy / totalVectorLength * player.Speed;
             }
 
-            Position Pos = player.WorldPos;
+            Point pos = player.WorldPos;
+            Size size = player.Size;
+            Rect playerRect;
 
-            //while (IsLocationOccupied(new Point(Pos.X + dx, Pos.Y + dy)))
-            //{
-            //    dx -= 0.1;
-            //    dy -= 0.1;
-            //}
+            double leftEdge = map.Thickness;
+            double topEdge = map.Thickness;
+            double rightEdge = map.Width - map.Thickness - player.Width;
+            double bottomEdge = map.Height - map.Thickness - player.Height;
 
-            Pos.Move(dx, dy);
+            pos.X += dx;
+            playerRect = new Rect(pos, size);
+            foreach (Entity collider in game.Colliders.Where(c => Math.Abs(c.WorldPos.X - pos.X) < 200))
+            {
+                var colliderRect = new Rect(collider.WorldPos, collider.Size);
+                if (playerRect.IntersectsWith(colliderRect))
+                {
+                    if (dx > 0)
+                        pos.X = collider.WorldPos.X - player.Width - 0.1;
+                    else if (dx < 0)
+                        pos.X = collider.WorldPos.X + collider.Width + 0.1;
+                    playerRect = new Rect(pos, size);
+                }
+            }
 
-            Pos.X = Math.Max(map.Thickness, Math.Min(Pos.X, game.Map.Width - map.Thickness));
-            Pos.Y = Math.Max(map.Thickness, Math.Min(Pos.Y, game.Map.Height - map.Thickness));
+            pos.Y += dy;
+            playerRect = new Rect(pos, size);
+            foreach (Entity collider in game.Colliders.Where(c => Math.Abs(c.WorldPos.Y - pos.Y) < 200))
+            {
+                var colliderRect = new Rect(collider.WorldPos, collider.Size);
+                if (playerRect.IntersectsWith(colliderRect))
+                {
+                    if (dy > 0)
+                        pos.Y = collider.WorldPos.Y - player.Height - 0.1;
+                    else if (dy < 0)
+                        pos.Y = collider.WorldPos.Y + collider.Height + 0.1;
+                    playerRect = new Rect(pos, size);
+                }
+            }
 
-            Canvas.SetLeft(player.Visual, Pos.X);
-            Canvas.SetTop(player.Visual, Pos.Y);
+            pos.X = Math.Max(leftEdge, Math.Min(pos.X, rightEdge));
+            pos.Y = Math.Max(topEdge, Math.Min(pos.Y, bottomEdge));
 
+            player.WorldPos = pos;
+            Canvas.SetLeft(player.Visual, pos.X);
+            Canvas.SetTop(player.Visual, pos.Y);
+
+            //debug
             debugInfo.Clear();
             debugInfo.Append($"dx: {dx:F1}\ndy: {dy:F1}\n");
 
-            if (PressedKeys.Contains(Key.K) && canCheck)
+            if (PressedKeys.Remove(Key.R))
             {
-                QOL.WriteOut($"{player.WorldPos.X:F0}, {player.WorldPos.Y:F0}");
-                canCheck = false;
-                PressedKeys.Remove(Key.K);
-            }
-
-            if (PressedKeys.Contains(Key.R))
-            {
-                PressedKeys.Remove(Key.R);
                 game.AddRock();
                 GameCanvas.Children.Add(game.rock.Visual);
                 Canvas.SetLeft(game.rock.Visual, game.rock.WorldPos.X);
                 Canvas.SetTop(game.rock.Visual, game.rock.WorldPos.Y);
             }
-        }
-
-        //private bool IsRectangleIntersecting(Border rect)
-        //{
-            
-        //}
-
-        private bool IsLocationOccupied(Point pos)
-        {
-            bool occupied = false;
-
-            VisualTreeHelper.HitTest(
-                GameCanvas,
-                null,
-                new HitTestResultCallback(result =>
-                {
-                    var visualDetected = result.VisualHit;
-
-                    if (visualDetected == player.Visual)
-                        return HitTestResultBehavior.Continue;
-                    if (visualDetected == map)
-                        return HitTestResultBehavior.Continue;
-                    if (visualDetected is Border)
-                    {
-                        occupied = true;
-                        return HitTestResultBehavior.Stop;
-                    }
-                    return HitTestResultBehavior.Continue;
-                }),
-                new PointHitTestParameters(pos));
-            return occupied;
         }
 
         private void CameraMovement()
