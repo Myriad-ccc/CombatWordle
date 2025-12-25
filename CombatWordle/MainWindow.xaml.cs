@@ -126,13 +126,21 @@ namespace CombatWordle
                 dy = dy / totalVectorLength * player.Speed;
             }
 
-            player.WorldPos.Move(dx, dy);
+            Position Pos = player.WorldPos;
 
-            player.WorldPos.X = Math.Max(map.Thickness, Math.Min(player.WorldPos.X, game.Map.Width - map.Thickness));
-            player.WorldPos.Y = Math.Max(map.Thickness, Math.Min(player.WorldPos.Y, game.Map.Height - map.Thickness));
+            //while (IsLocationOccupied(new Point(Pos.X + dx, Pos.Y + dy)))
+            //{
+            //    dx -= 0.1;
+            //    dy -= 0.1;
+            //}
 
-            Canvas.SetLeft(player.Visual, player.WorldPos.X);
-            Canvas.SetTop(player.Visual, player.WorldPos.Y);
+            Pos.Move(dx, dy);
+
+            Pos.X = Math.Max(map.Thickness, Math.Min(Pos.X, game.Map.Width - map.Thickness));
+            Pos.Y = Math.Max(map.Thickness, Math.Min(Pos.Y, game.Map.Height - map.Thickness));
+
+            Canvas.SetLeft(player.Visual, Pos.X);
+            Canvas.SetTop(player.Visual, Pos.Y);
 
             debugInfo.Clear();
             debugInfo.Append($"dx: {dx:F1}\ndy: {dy:F1}\n");
@@ -152,6 +160,37 @@ namespace CombatWordle
                 Canvas.SetLeft(game.rock.Visual, game.rock.WorldPos.X);
                 Canvas.SetTop(game.rock.Visual, game.rock.WorldPos.Y);
             }
+        }
+
+        //private bool IsRectangleIntersecting(Border rect)
+        //{
+            
+        //}
+
+        private bool IsLocationOccupied(Point pos)
+        {
+            bool occupied = false;
+
+            VisualTreeHelper.HitTest(
+                GameCanvas,
+                null,
+                new HitTestResultCallback(result =>
+                {
+                    var visualDetected = result.VisualHit;
+
+                    if (visualDetected == player.Visual)
+                        return HitTestResultBehavior.Continue;
+                    if (visualDetected == map)
+                        return HitTestResultBehavior.Continue;
+                    if (visualDetected is Border)
+                    {
+                        occupied = true;
+                        return HitTestResultBehavior.Stop;
+                    }
+                    return HitTestResultBehavior.Continue;
+                }),
+                new PointHitTestParameters(pos));
+            return occupied;
         }
 
         private void CameraMovement()

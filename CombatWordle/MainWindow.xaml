@@ -13,6 +13,7 @@
     Foreground="White"
     KeyDown="Window_KeyDown"
     KeyUp="Window_KeyUp"
+    Icon="/Assets/Icon.ico"
     ResizeMode="NoResize"
     UseLayoutRounding="True"
     WindowStartupLocation="CenterScreen"

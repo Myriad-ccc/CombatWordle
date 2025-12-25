@@ -23,12 +23,7 @@
 
         public Entity(double width, double height)
         {
-            Width = width;
-            Height = height;
-
-            Visual.Width = Width;
-            Visual.Height = Height;
-            Visual.BorderThickness = new Thickness(Area / (4 * Parameter));
+            UpdateDimensions(width, height);
         }
 
         public void UpdateDimensions(double width, double height)
@@ -37,6 +32,7 @@
             Height = height;
             Visual.Width = width;
             Visual.Height = height;
+            Visual.BorderThickness = new Thickness(Area / (5 * Parameter));
         }
     }
 }

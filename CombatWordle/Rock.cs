@@ -7,11 +7,11 @@
         public Rock()
         {
             Visual.Background = Brushes.Gray;
+            Visual.BorderBrush = Brushes.LightGray;
 
             int w = 0;
             int h = 0;
 
-            int i = 0;
             while (w * h < 1000)
             {
                 w = random.Next(20, 200);
