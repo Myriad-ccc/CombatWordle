@@ -15,6 +15,7 @@
     KeyDown="Window_KeyDown"
     KeyUp="Window_KeyUp"
     ResizeMode="NoResize"
+    SnapsToDevicePixels="True"
     UseLayoutRounding="True"
     WindowStartupLocation="CenterScreen"
     WindowStyle="None"
@@ -125,12 +126,12 @@
                     VerticalAlignment="Center">
 
                     <Button
-                        x:Name="FirstModeButton"
+                        x:Name="PlayButton"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         Background="Transparent"
                         BorderThickness="0"
-                        Click="FirstModeButton_Click"
+                        Click="PlayButton_Click"
                         Content="Play"
                         FontSize="84"
                         Foreground="White" />
@@ -142,17 +143,6 @@
                         Background="Transparent"
                         BorderThickness="0"
                         Content="Options"
-                        FontSize="84"
-                        Foreground="White" />
-
-                    <Button
-                        x:Name="QuitButton"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Click="QuitButton_Click"
-                        Content="Quit"
                         FontSize="84"
                         Foreground="White" />
                 </StackPanel>
@@ -172,7 +162,7 @@
                 FontSize="32"
                 Foreground="White"
                 MouseUp="DebugText_MouseUp"
-                Text="Test" />
+                Text="DebugInfo" />
         </Grid>
     </Grid>
 </Window>

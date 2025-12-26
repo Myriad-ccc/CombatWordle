@@ -48,5 +48,19 @@ namespace CombatWordle
             base.OnRenderSizeChanged(sizeInfo);
             CoerceValue(BorderThicknessProperty);
         }
+
+        public bool RectInside(Rect rect)
+        {
+            return rect.Left >= Thickness
+                && rect.Top >= Thickness
+                && rect.Right <= Width - Thickness
+                && rect.Bottom <= Height - Thickness;
+        }
+    }
+
+    public enum MapSpace
+    {
+        Total,
+        Available
     }
 }

@@ -1,20 +1,30 @@
-﻿global using System.Windows;
+﻿global using System.Diagnostics;
+global using System.Text;
+global using System.Windows;
 global using System.Windows.Controls;
 global using System.Windows.Input;
 global using System.Windows.Media;
-using System.Text;
 
 namespace CombatWordle
 {
     public partial class MainWindow : Window
     {
-        private bool FormDragging = false;
+        private readonly Stopwatch Uptime = Stopwatch.StartNew();
+        private double lastTime;
+
+        private bool WindowDragging = false;
         private Point DragOffset;
         private readonly HashSet<Key> PressedKeys = [];
 
         private GameState game;
-        private Player player;
-        private Map map;
+        private Culler culler;
+        private Renderer renderer;
+
+        private List<EntityData> visible = [];
+        private List<EntityData> hidden = [];
+
+        private Map map => game.Map;
+        private Player player => game.Player;
 
         private StringBuilder debugInfo = new();
 
@@ -22,7 +32,7 @@ namespace CombatWordle
         {
             if (e.ChangedButton == MouseButton.Left)
             {
-                FormDragging = true;
+                WindowDragging = true;
 
                 var mouseLoc = PointToScreen(e.GetPosition(this));
                 DragOffset = new Point(mouseLoc.X - Left, mouseLoc.Y - Top);
@@ -33,7 +43,7 @@ namespace CombatWordle
         {
             if (e.ChangedButton == MouseButton.Left)
             {
-                FormDragging = false;
+                WindowDragging = false;
                 Mouse.Capture(null);
             }
         }
@@ -41,7 +51,7 @@ namespace CombatWordle
         {
             if (e.LeftButton == MouseButtonState.Pressed)
             {
-                if (FormDragging)
+                if (WindowDragging)
                 {
                     var screenLoc = PointToScreen(e.GetPosition(this));
 
@@ -62,70 +72,55 @@ namespace CombatWordle
         }
         private void ClosingButton_Click(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
         private void MinimizeButton_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-        private void QuitButton_Click(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
-        private void DebugText_MouseUp(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ChangedButton == MouseButton.Right)
-                DebugText.Visibility = Visibility.Hidden;
-        }
-        private void FirstModeButton_Click(object sender, RoutedEventArgs e)
-        {
-            StartFirstMode();
-        }
-
-        private async void StartFirstMode()
-        {
-            StartMenu.Visibility = Visibility.Hidden;
-            GameCanvas.Visibility = Visibility.Visible;
-            await RunGame();
-        }
+        private void PlayButton_Click(object sender, RoutedEventArgs e) => StartGame();
+        private void DebugText_MouseUp(object sender, MouseButtonEventArgs e) => DebugText.Visibility = e.ChangedButton == MouseButton.Right ? Visibility.Hidden : DebugText.Visibility;
+        private void Window_KeyDown(object sender, KeyEventArgs e) => PressedKeys.Add(e.Key);
+        private void Window_KeyUp(object sender, KeyEventArgs e) => PressedKeys.Remove(e.Key);
 
         public MainWindow()
         {
             InitializeComponent();
 
+            lastTime = Uptime.Elapsed.TotalSeconds;
+
             TitleText.Foreground = QOL.RandomColor();
             TitleTextShadow.Foreground = QOL.RandomColor();
 
             game = new GameState();
-            GameCanvas.Children.Add(game.Map);
-            player = game.Player;
-            map = game.Map;
-            AddToMap(player);
+            culler = new(game.AllEntityData);
+            renderer = new(GameCanvas);
 
-            game.ImplementEntity += AddToMap;
-            game.PopulateMap<Rock>(2000);
-            StartFirstMode();
+            GameCanvas.Children.Add(map);
+            Canvas.SetLeft(map, 0);
+            Canvas.SetTop(map, 0);
+
+            StartGame();
         }
 
-        private void AddToMap(Entity entity)
-        {
-            GameCanvas.Children.Add(entity.Visual);
-            Canvas.SetLeft(entity.Visual, entity.WorldPos.X);
-            Canvas.SetTop(entity.Visual, entity.WorldPos.Y);
-        }
-
-        private void PlayerMovement()
+        private void PlayerMovement(double dt)
         {
             double dx = 0;
             double dy = 0;
 
-            if (PressedKeys.Contains(Key.W)) dy -= player.Speed;
-            if (PressedKeys.Contains(Key.A)) dx -= player.Speed;
-            if (PressedKeys.Contains(Key.S)) dy += player.Speed;
-            if (PressedKeys.Contains(Key.D)) dx += player.Speed;
+            if (PressedKeys.Contains(Key.W)) dy -= 1;
+            if (PressedKeys.Contains(Key.A)) dx -= 1;
+            if (PressedKeys.Contains(Key.S)) dy += 1;
+            if (PressedKeys.Contains(Key.D)) dx += 1;
 
             if (dx != 0 || dy != 0)
             {
                 double totalVectorLength = Math.Sqrt(dx * dx + dy * dy);
 
-                dx = dx / totalVectorLength * player.Speed;
-                dy = dy / totalVectorLength * player.Speed;
+                dx /= totalVectorLength;
+                dy /= totalVectorLength;
             }
+
+            dx *= player.Speed * dt;
+            dy *= player.Speed * dt;
 
             Point pos = player.WorldPos;
             Size size = player.Size;
-            Rect playerRect;
+            Rect newRect;
 
             double leftEdge = map.Thickness;
             double topEdge = map.Thickness;
@@ -133,32 +128,35 @@ namespace CombatWordle
             double bottomEdge = map.Height - map.Thickness - player.Height;
 
             pos.X += dx;
-            playerRect = new Rect(pos, size);
-            foreach (Entity collider in game.Colliders.Where(c => Math.Abs(c.WorldPos.X - pos.X) < 200))
+            newRect = new Rect(pos, size);
+            foreach (Entity collider in game.Colliders
+                .Where(c => c.CollisionType != CollisionType.Live
+                && Math.Abs(c.WorldPos.X - pos.X) < player.Area / 15))
             {
-                var colliderRect = new Rect(collider.WorldPos, collider.Size);
-                if (playerRect.IntersectsWith(colliderRect))
+                if (newRect.IntersectsWith(collider.Rect))
                 {
                     if (dx > 0)
                         pos.X = collider.WorldPos.X - player.Width - 0.1;
                     else if (dx < 0)
                         pos.X = collider.WorldPos.X + collider.Width + 0.1;
-                    playerRect = new Rect(pos, size);
+                    newRect = new Rect(pos, size);
                 }
             }
 
             pos.Y += dy;
-            playerRect = new Rect(pos, size);
-            foreach (Entity collider in game.Colliders.Where(c => Math.Abs(c.WorldPos.Y - pos.Y) < 200))
+            newRect = new Rect(pos, size);
+            foreach (Entity collider in game.Colliders
+                .Where(c => c.CollisionType != CollisionType.Live
+                && Math.Abs(c.WorldPos.Y - pos.Y) < player.Area / 15))
             {
                 var colliderRect = new Rect(collider.WorldPos, collider.Size);
-                if (playerRect.IntersectsWith(colliderRect))
+                if (newRect.IntersectsWith(colliderRect))
                 {
                     if (dy > 0)
                         pos.Y = collider.WorldPos.Y - player.Height - 0.1;
                     else if (dy < 0)
                         pos.Y = collider.WorldPos.Y + collider.Height + 0.1;
-                    playerRect = new Rect(pos, size);
+                    newRect = new Rect(pos, size);
                 }
             }
 
@@ -166,14 +164,11 @@ namespace CombatWordle
             pos.Y = Math.Max(topEdge, Math.Min(pos.Y, bottomEdge));
 
             player.WorldPos = pos;
-            Canvas.SetLeft(player.Visual, pos.X);
-            Canvas.SetTop(player.Visual, pos.Y);
 
             //debug
             debugInfo.Clear();
             debugInfo.Append($"dx: {dx:F1}\ndy: {dy:F1}\n");
         }
-
         private void CameraMovement()
         {
             double px = player.WorldPos.X + player.Width / 2;
@@ -191,35 +186,57 @@ namespace CombatWordle
             CameraTransform.X = offsetX;
             CameraTransform.Y = offsetY;
 
-            debugInfo.Append($"px: {px:F1}\npy: {py:F1}");
+            debugInfo.Append($"px: {px:F1}\npy: {py:F1}\n");
         }
-
-        public void Move()
+        public void Move(double dt)
         {
-            PlayerMovement();
+            PlayerMovement(dt);
             CameraMovement();
         }
-
-        private async Task GameLoop()
+        private void HandleHotKeys()
         {
-            while (!game.GameOver)
-            {
-                if (PressedKeys.Remove(Key.R))
-                {
-                    game.AddTestRock();
-                }
-                Move();
-                DebugText.Text = debugInfo.ToString();
-                await Task.Delay(16);
-            }
+            if (PressedKeys.Remove(Key.R))
+                game.AddTestRock();
+            if (PressedKeys.Remove(Key.G))
+                game.PopulateMap<Rock>(2000);
+        }
+        private void OnRender(object sender, EventArgs e)
+        {
+            double now = Uptime.Elapsed.TotalSeconds;
+            double dt = Math.Min(now - lastTime, 0.05);
+            lastTime = now;
+
+            Update(dt);
         }
 
-        private async Task RunGame()
+        private void Update(double dt)
         {
-            await GameLoop();
+            HandleHotKeys();
+            Move(dt);
+
+            Rect viewport = new(
+                -CameraTransform.X,
+                -CameraTransform.Y,
+                ActualWidth,
+                ActualHeight
+                );
+
+            visible.Clear();
+            hidden.Clear();
+
+            culler.Cull(viewport, visible, hidden);
+            renderer.RenderEntities(visible, hidden);
+
+            debugInfo.Append($"dt: {dt:F3}\n");
+            DebugText.Text = debugInfo.ToString();
         }
 
-        private void Window_KeyDown(object sender, KeyEventArgs e) => PressedKeys.Add(e.Key);
-        private void Window_KeyUp(object sender, KeyEventArgs e) => PressedKeys.Remove(e.Key);
+        private async void StartGame()
+        {
+            StartMenu.Visibility = Visibility.Hidden;
+            GameCanvas.Visibility = Visibility.Visible;
+
+            CompositionTarget.Rendering += OnRender;
+        }
     }
 }

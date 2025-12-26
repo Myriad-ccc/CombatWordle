@@ -7,23 +7,24 @@
         public Rock()
         {
             UpdateDimensions(GetRandomSize());
-            SetVisuals();
+            SetAttributes();
         }
 
         public Rock(Point pos) : base(pos)
         {
             UpdateDimensions(GetRandomSize());
-            SetVisuals();
+            SetAttributes();
         }
 
         public Rock(Point pos, Size size) : base(pos, size)
         {
-            SetVisuals();
+            SetAttributes();
         }
 
-        private void SetVisuals()
+        private void SetAttributes()
         {
             CanCollide = true;
+            CollisionType = CollisionType.Enviornment;
 
             DefaultColor = Brushes.Gray;
             DefaultBorderColor = Brushes.LightGray;
