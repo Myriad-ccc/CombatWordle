@@ -2,8 +2,8 @@
 {
     public enum CollisionType
     {
-        Live,
-        Enviornment,
-        Fluid
+        Live, //dynamic
+        Enviornment, //static
+        Ghost //dynamic?
     }
 }

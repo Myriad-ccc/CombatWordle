@@ -3,6 +3,7 @@
     public class GameState
     {
         public Map Map { get; private set; }
+        public SpatialGrid spatialGrid;
 
         public bool GameOver { get; private set; } = false;
 
@@ -21,6 +22,7 @@
         public GameState(int mapWidth = 12800, int mapHeight = 12800)
         {
             Map = new(mapWidth, mapHeight);
+            spatialGrid = new(mapWidth, mapHeight);
             AddPlayer();
         }
 
@@ -40,16 +42,24 @@
         }
 
         public bool InsideMap(Entity entity) => Map.RectInside(entity.Rect);
-        public bool Colliding(Entity entity) => Colliders.Any(c => c.Rect.IntersectsWith(entity.Rect));
+        public bool Colliding(Entity entity)
+        {
+            foreach (var data in spatialGrid.Search(entity.Rect))
+                if (data.Entity != entity
+                    && data.Entity.CanCollide
+                    && data.Rect.IntersectsWith(entity.Rect))
+                    return true;
+            return false;
+        }
 
         public bool CanSpawn(Entity entity) =>
             InsideMap(entity)
             && !Colliding(entity);
 
-        private Point GetRandomPosition(Entity entity) => // Random() * (max - min) + min for a random num in range [min..max]
+        private Point GetRandomPosition(Entity entity) =>
             new(
-                Random.Shared.NextDouble() * (Map.Width - Map.Thickness - entity.Width - Map.Thickness) + Map.Thickness,
-                Random.Shared.NextDouble() * (Map.Height - Map.Thickness - entity.Height - Map.Thickness) + Map.Thickness
+                QOL.NextDoubleInRange(Map.Thickness, Map.Width - Map.Thickness - entity.Width),
+                QOL.NextDoubleInRange(Map.Thickness, Map.Width - Map.Thickness - entity.Width)
                 );
 
         private void RerollSpawn(Entity entity) =>
@@ -115,16 +125,17 @@
         {
             Entities.Add(entity);
 
-            EntityData data = new(entity) 
+            EntityData data = new(entity)
             {
-                Visible = false,
-                CurrentLoadStage = LoadStage.Registered
+                CurrentLoadStage = LoadStage.Unrendered
             };
             AllEntityData.Add(data);
+            spatialGrid.Add(data);
 
             if (entity.CanCollide) Colliders.Add(entity);
             if (entity is Player player) Players.Add(player);
             if (entity is Rock rock) Rocks.Add(rock);
+
         }
 
         public void PopulateMap<T>(int count)

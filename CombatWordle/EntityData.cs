@@ -3,7 +3,6 @@
     public class EntityData
     {
         public Entity Entity;
-        public bool Visible;
 
         public Rect LastRect;
 
@@ -26,12 +25,5 @@
             Entity = entity;
             LastRect = entity.Rect;
         }
-    }
-
-    public enum LoadStage
-    {
-        Unregistered = 10,
-        Registered = 20,
-        Rendered = 30
     }
 }

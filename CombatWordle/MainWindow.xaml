@@ -170,6 +170,22 @@
                 FontSize="32"
                 Foreground="White"
                 Text="EntityCounter" />
+            <Button
+                x:Name="GhostMode"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Bottom"
+                Background="Transparent"
+                BorderThickness="0"
+                Click="GhostMode_Click"
+                Content="Ghost"
+                FontSize="42"
+                Foreground="White">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
         </Grid>
     </Grid>
 </Window>

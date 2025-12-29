@@ -89,6 +89,8 @@
                 return;
             }
 
+            if (current == last) return;
+
             foreach (var cell in OccupiedCells(last))
             {
                 if (Cells.TryGetValue(cell, out var list))

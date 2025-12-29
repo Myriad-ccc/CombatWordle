@@ -6,7 +6,6 @@ global using System.Windows;
 global using System.Windows.Controls;
 global using System.Windows.Input;
 global using System.Windows.Media;
-using System.Windows.Shapes;
 
 namespace CombatWordle
 {
@@ -22,13 +21,10 @@ namespace CombatWordle
         private readonly HashSet<Key> PressedKeys = [];
 
         private GameState game;
-        private SpatialGrid spatialGrid;
         private SceneManager sceneManager;
 
-        private List<EntityData> visible = [];
-        private List<EntityData> hidden = [];
-
         private Map map => game.Map;
+        private SpatialGrid grid => game.spatialGrid;
         private Player player => game.Player;
 
         private StringBuilder debugInfo = new();
@@ -82,6 +78,20 @@ namespace CombatWordle
         private void DebugText_MouseUp(object sender, MouseButtonEventArgs e) => DebugText.Visibility = e.ChangedButton == MouseButton.Right ? Visibility.Hidden : DebugText.Visibility;
         private void Window_KeyDown(object sender, KeyEventArgs e) => PressedKeys.Add(e.Key);
         private void Window_KeyUp(object sender, KeyEventArgs e) => PressedKeys.Remove(e.Key);
+        private void GhostMode_Click(object sender, RoutedEventArgs e)
+        {
+            if (player == null) return;
+            if (player.CollisionType == CollisionType.Live)
+            {
+                player.CollisionType = CollisionType.Ghost;
+                GhostMode.Foreground = Brushes.DarkRed;
+            }
+            else
+            {
+                player.CollisionType = CollisionType.Live;
+                GhostMode.Foreground = Brushes.White;
+            }
+        }
 
         public MainWindow()
         {
@@ -93,60 +103,15 @@ namespace CombatWordle
             TitleTextShadow.Foreground = QOL.RandomColor();
 
             game = new GameState();
-            spatialGrid = new(map.Width, map.Height);
-            sceneManager = new(GameCanvas, visible, hidden);
+            sceneManager = new(GameCanvas);
 
             GameCanvas.Children.Add(map);
             Canvas.SetLeft(map, 0);
             Canvas.SetTop(map, 0);
 
-            DrawSpatialGrid();
+            QOL.DrawGrid(GameCanvas, (int)map.Width, (int)map.Height, 128, Brushes.LightGreen);
 
             StartGame();
-        }
-
-        private void DrawSpatialGrid()
-        {
-            var grid = new Grid()
-            {
-                IsHitTestVisible = false,
-                Opacity = 0.6
-            };
-            GameCanvas.Children.Add(grid);
-
-            int cellSize = 128;
-            double width = map.Width;
-            double height = map.Height;
-
-            var brush = Brushes.Green;
-
-            for (int x = 0; x <= width; x += cellSize)
-            {
-                var line = new Line()
-                {
-                    X1 = x,
-                    X2 = x,
-                    Y1 = 0,
-                    Y2 = height,
-                    Stroke = brush,
-                    StrokeThickness = 1
-                };
-                grid.Children.Add(line);
-            }
-
-            for (int y = 0; y <= height; y += cellSize)
-            {
-                var line = new Line()
-                {
-                    X1 = 0,
-                    X2 = width,
-                    Y1 = y,
-                    Y2 = y,
-                    Stroke = brush,
-                    StrokeThickness = 1
-                };
-                grid.Children.Add(line);
-            }
         }
 
         private void PlayerMovement(double dt)
@@ -182,12 +147,13 @@ namespace CombatWordle
 
             Rect searchArea = player.Rect;
             searchArea.Inflate(player.Speed * dt + 10, player.Speed * dt + 10);
-            var colliders = spatialGrid.Search(searchArea);
+            var colliders = grid.Search(searchArea);
 
             pos.X += dx;
             newRect = new Rect(pos, size);
             foreach (var collider in colliders.Where(c => c.Entity.CollisionType != CollisionType.Live))
             {
+                if (player.CollisionType == CollisionType.Ghost) break;
                 if (newRect.IntersectsWith(collider.Rect))
                 {
                     if (dx > 0)
@@ -202,6 +168,7 @@ namespace CombatWordle
             newRect = new Rect(pos, size);
             foreach (var collider in colliders.Where(c => c.Entity.CollisionType != CollisionType.Live))
             {
+                if (player.CollisionType == CollisionType.Ghost) break;
                 if (newRect.IntersectsWith(collider.Rect))
                 {
                     if (dy > 0)
@@ -276,8 +243,8 @@ namespace CombatWordle
             entityCounter.Clear();
             HandleHotKeys();
             Move(dt);
-            foreach (var entityData in game.AllEntityData)
-                spatialGrid.Update(entityData);
+            foreach (var entityData in game.AllEntityData.Where(e => e.Entity.CollisionType != CollisionType.Enviornment))
+                grid.Update(entityData);
             sceneManager.Update(Viewport, game.AllEntityData);
             DebugGo(dt);
         }

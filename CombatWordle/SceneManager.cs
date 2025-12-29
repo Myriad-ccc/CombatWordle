@@ -3,43 +3,26 @@
     public class SceneManager
     {
         private readonly Canvas Canvas;
-        private readonly EntityStager Stager;
-        private readonly Renderer Renderer;
 
-        private List<EntityData> Visible;
-        private List<EntityData> Hidden;
-
-        public SceneManager(Canvas canvas, List<EntityData> visible, List<EntityData> hidden)
+        public SceneManager(Canvas canvas)
         {
             Canvas = canvas;
-            Stager = new(new());
-            Renderer = new(canvas);
-
-            Visible = visible;
-            Hidden = hidden;
         }
 
-        public void Update(Rect viewport, List<EntityData> entities)
+        public void Update(Rect Viewport, List<EntityData> entities)
         {
-            Stager.Viewport = viewport;
+            var viewport = Viewport;
+            viewport.Inflate(150, 150);
             foreach (var data in entities)
             {
-                Stager.UpdateLoadStage(data);
-                Cull(viewport, data);
                 var e = data.Entity;
-                switch (data.CurrentLoadStage)
+                bool onScreen = viewport.IntersectsWith(data.Rect);
+                bool onCanvas = e.Visual != null;
+                if (onScreen)
                 {
-                    case LoadStage.Unregistered:
-                        break;
-                    case LoadStage.Registered:
-                        if (e.Visual != null)
-                        {
-                            Renderer.Drop(data);
-                            e.Visual = null;
-                        }
-                        break;
-                    case LoadStage.Rendered:
-                        e.Visual ??= new()
+                    if (!onCanvas)
+                    {
+                        e.Visual = new()
                         {
                             Width = e.Width,
                             Height = e.Height,
@@ -47,32 +30,16 @@
                             Background = e.DefaultColor,
                             BorderBrush = e.DefaultBorderColor
                         };
-                        break;
+                        Canvas.Children.Add(e.Visual);
+                    }
+                    Canvas.SetLeft(data.Entity.Visual, data.X);
+                    Canvas.SetTop(data.Entity.Visual, data.Y);
                 }
-            }
-
-            Renderer.RenderEntities(Visible, Hidden);
-
-            Visible.Clear();
-            Hidden.Clear();
-        }
-
-        private void Cull(Rect viewport, EntityData entity)
-        {
-            if (viewport.IntersectsWith(entity.Rect))
-            {
-                if (!entity.Visible)
+                else
                 {
-                    entity.Visible = true;
-                    Visible.Add(entity);
-                }
-            }
-            else
-            {
-                if (entity.Visible)
-                {
-                    entity.Visible = false;
-                    Hidden.Add(entity);
+                    if (onCanvas) continue;
+                    Canvas.Children.Remove(e.Visual);
+                    e.Visual = null;
                 }
             }
         }

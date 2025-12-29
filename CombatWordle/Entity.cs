@@ -8,7 +8,7 @@
         public double Height { get; set; }
 
         public bool CanCollide { get; set; } = false;
-        public CollisionType CollisionType { get; protected set; }
+        public CollisionType CollisionType { get; set; }
 
         public Border Visual;
         public Brush DefaultColor { get; protected set; } = Brushes.Gray;

@@ -17,12 +17,7 @@
         public Region[] Regions;
         public Rect[] RegionRects;
 
-        private readonly LoadStage[] LoadStages =
-            [
-            LoadStage.Unregistered,
-            LoadStage.Registered,
-            LoadStage.Rendered
-            ];
+        private readonly LoadStage[] LoadStages = Enum.GetValues<LoadStage>();
 
         public EntityStager(Rect viewport)
         {
@@ -60,9 +55,7 @@
         {
             var r = GetRegionFromRect(data.Rect);
             if (r == Region.Immediate) return LoadStage.Rendered;
-            if (r == Region.Near) return LoadStage.Registered;
-            if (r == Region.Far) return LoadStage.Registered;
-            return LoadStage.Unregistered;
+            return LoadStage.Unrendered;
         }
 
         public void UpdateLoadStage(EntityData data)
@@ -80,5 +73,17 @@
             if (targetIndex < currentIndex)
                 data.CurrentLoadStage = LoadStages[--currentIndex];
         }
+    }
+
+    public enum Region
+    {
+        Immediate = 200,
+        Near = 800,
+    }
+
+    public enum LoadStage
+    {
+        Unrendered = 10,
+        Rendered = 20
     }
 }
