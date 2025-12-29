@@ -6,23 +6,15 @@
         public double DX { get; set; } = 0;
         public double DY { get; set; } = 0;
 
-        public Player()
-        {
-            SetAttributes();
-        }
+        public Player() : base() { }
 
-        public Player(Point pos, Size size) : base(pos, size)
-        {
-            SetAttributes();
-        }
-
-        private void SetAttributes()
+        public override void SetAttributes()
         {
             CanCollide = true;
             CollisionType = CollisionType.Live;
 
-            DefaultColor = Brushes.CornflowerBlue;
-            DefaultBorderColor = Brushes.RoyalBlue;
+            Color = Brushes.CornflowerBlue;
+            BorderColor = Brushes.RoyalBlue;
         }
     }
 }

@@ -119,5 +119,7 @@
             }
             return found;
         }
+
+        public void ClearAll() => Cells.Clear();
     }
 }

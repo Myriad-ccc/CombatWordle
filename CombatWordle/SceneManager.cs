@@ -4,43 +4,71 @@
     {
         private readonly Canvas Canvas;
 
+        private readonly HashSet<EntityData> Rendered = [];
+        private readonly HashSet<EntityData> Visible = [];
+        private readonly List<EntityData> ToRemove = [];
+
         public SceneManager(Canvas canvas)
         {
             Canvas = canvas;
         }
 
-        public void Update(Rect Viewport, List<EntityData> entities)
+        public void Update(Rect viewport, List<EntityData> allEntities, IEnumerable<EntityData> viewPortEntities = null)
         {
-            var viewport = Viewport;
-            viewport.Inflate(150, 150);
-            foreach (var data in entities)
+            Visible.Clear();
+            ToRemove.Clear();
+
+            var viewportEntities = viewPortEntities ?? EntitiesInArea(viewport, allEntities);
+
+            foreach (var data in EntitiesInArea(viewport, allEntities))
             {
-                var e = data.Entity;
-                bool onScreen = viewport.IntersectsWith(data.Rect);
-                bool onCanvas = e.Visual != null;
-                if (onScreen)
-                {
-                    if (!onCanvas)
-                    {
-                        e.Visual = new()
-                        {
-                            Width = e.Width,
-                            Height = e.Height,
-                            BorderThickness = new(e.Area / (5 * e.Parameter)),
-                            Background = e.DefaultColor,
-                            BorderBrush = e.DefaultBorderColor
-                        };
-                        Canvas.Children.Add(e.Visual);
-                    }
-                    Canvas.SetLeft(data.Entity.Visual, data.X);
-                    Canvas.SetTop(data.Entity.Visual, data.Y);
-                }
-                else
-                {
-                    if (onCanvas) continue;
-                    Canvas.Children.Remove(e.Visual);
-                    e.Visual = null;
-                }
+                Visible.Add(data);
+                if (Rendered.Add(data))
+                    Add(data);
+                Canvas.SetLeft(data.Entity.Visual, data.X);
+                Canvas.SetTop(data.Entity.Visual, data.Y);
+            }
+
+            foreach (var data in Rendered.Where(e => !Visible.Contains(e)))
+                ToRemove.Add(data);
+            foreach (var data in ToRemove)
+            {
+                Remove(data);
+                Rendered.Remove(data);
+            }
+        }
+
+        public void Add(EntityData data)
+        {
+            var e = data.Entity;
+            e.Visual ??= new()
+            {
+                Width = e.Width,
+                Height = e.Height,
+                BorderThickness = new(e.Area / (5 * e.Parameter)),
+                Background = e.Color,
+                BorderBrush = e.BorderColor
+            };
+            Canvas.Children.Add(e.Visual);
+            data.Visible = true;
+        }
+
+        public void Remove(EntityData data)
+        {
+            var e = data.Entity;
+            if (e.Visual != null)
+            {
+                Canvas.Children.Remove(e.Visual);
+                data.Visible = false;
+            }
+        }
+
+        public IEnumerable<EntityData> EntitiesInArea(Rect area, List<EntityData> allEntities)
+        { // use spatial grid instead if possible
+            foreach (var entity in allEntities)
+            {
+                if (entity.Rect.IntersectsWith(area))
+                    yield return entity;
             }
         }
     }

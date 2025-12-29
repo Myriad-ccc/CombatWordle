@@ -15,6 +15,15 @@ namespace CombatWordle
         private double lastTime;
 
         private Rect Viewport => new(-CameraTransform.X, -CameraTransform.Y, ActualWidth, ActualHeight);
+        private Rect ViewportPlus
+        {
+            get
+            {
+                var temp = Viewport;
+                temp.Inflate(150, 150);
+                return temp;
+            }
+        }
 
         private bool WindowDragging = false;
         private Point DragOffset;
@@ -25,7 +34,7 @@ namespace CombatWordle
 
         private Map map => game.Map;
         private SpatialGrid grid => game.spatialGrid;
-        private Player player => game.Player;
+        private Player player => game.Players[0];
 
         private StringBuilder debugInfo = new();
         private StringBuilder entityCounter = new();
@@ -135,7 +144,7 @@ namespace CombatWordle
             dx *= player.Speed * dt;
             dy *= player.Speed * dt;
 
-            Point pos = player.WorldPos;
+            Point pos = player.Pos;
             Size size = player.Size;
             Rect newRect;
 
@@ -186,7 +195,7 @@ namespace CombatWordle
                 !double.IsNaN(pos.X)
                 && !double.IsNaN(pos.Y));
 
-            player.WorldPos = pos;
+            player.Pos = pos;
 
             debugInfo.AppendLine($"dx:{dx:F1}\ndy:{dy:F1}");
             debugInfo.AppendLine($"vx:{dx * 1 / dt:F1}\nvy:{dy * 1 / dt:F1}");
@@ -194,8 +203,8 @@ namespace CombatWordle
 
         private void CameraMovement()
         {
-            double px = player.WorldPos.X + player.Width / 2;
-            double py = player.WorldPos.Y + player.Height / 2;
+            double px = player.Pos.X + player.Width / 2;
+            double py = player.Pos.Y + player.Height / 2;
 
             double screenCenterX = ActualWidth / 2;
             double screenCenterY = ActualHeight / 2;
@@ -224,6 +233,41 @@ namespace CombatWordle
                 game.AddTestRock();
             if (PressedKeys.Remove(Key.G))
                 game.PopulateMap<Rock>(2000);
+            if (PressedKeys.Remove(Key.V))
+                ClearViewport();
+            if (PressedKeys.Remove(Key.M))
+                ClearMap();
+        }
+
+        private void ClearArea(Rect area)
+        {
+            var targets = grid.Search(area);
+            var toRemove = targets.Where(e => e.Entity is not Player);
+
+            foreach (var data in toRemove)
+            {
+                game.AllEntityData.Remove(data);
+                if (data.Entity is Rock rock) game.Rocks.Remove(rock);
+                game.spatialGrid.Remove(data);
+                sceneManager.Remove(data);
+            }
+        }
+        private void ClearViewport()
+        {
+            ClearArea(ViewportPlus);
+        }
+        private void ClearMap()
+        {
+            foreach (var data in game.AllEntityData)
+                if (data.Entity is not Player)
+                    sceneManager.Remove(data);
+            
+            game.Rocks.Clear();
+            game.Entities.RemoveAll(e => e is not Player);
+            game.AllEntityData.RemoveAll(e => e.Entity is not Player);
+            game.spatialGrid.ClearAll();
+            game.spatialGrid.Add(game.AllEntityData[0]);
+            GC.Collect();
         }
 
         private void DebugGo(double dt)
@@ -245,7 +289,7 @@ namespace CombatWordle
             Move(dt);
             foreach (var entityData in game.AllEntityData.Where(e => e.Entity.CollisionType != CollisionType.Enviornment))
                 grid.Update(entityData);
-            sceneManager.Update(Viewport, game.AllEntityData);
+            sceneManager.Update(ViewportPlus, game.AllEntityData, game.spatialGrid.Search(ViewportPlus));
             DebugGo(dt);
         }
 

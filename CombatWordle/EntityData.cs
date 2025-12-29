@@ -3,6 +3,7 @@
     public class EntityData
     {
         public Entity Entity;
+        public bool Visible;
 
         public Rect LastRect;
 
@@ -13,7 +14,7 @@
         public int GY { get; set; } = -1;
 
         public Rect Rect => Entity.Rect;
-        public Point Pos => Entity.WorldPos;
+        public Point Pos => Entity.Pos;
         public double X => Rect.X;
         public double Y => Rect.Y;
         public Size Size => Rect.Size;
@@ -24,6 +25,8 @@
         {
             Entity = entity;
             LastRect = entity.Rect;
+            Visible = false;
+            CurrentLoadStage = LoadStage.Unrendered;
         }
     }
 }

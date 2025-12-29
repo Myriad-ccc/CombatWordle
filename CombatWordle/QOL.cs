@@ -1,4 +1,5 @@
-﻿using System.Windows.Shapes;
+﻿using System.Reflection;
+using System.Windows.Shapes;
 
 namespace CombatWordle
 {
@@ -88,5 +89,12 @@ namespace CombatWordle
                 grid.Children.Add(line);
             }
         }
+
+        public static Type[] GetDerivedTypes<T>() =>
+            Assembly
+            .GetAssembly(typeof(T))!
+            .GetTypes()
+            .Where(t => typeof(T).IsAssignableFrom(t) && t != typeof(T) && !t.IsAbstract)
+            .ToArray();
     }
 }
