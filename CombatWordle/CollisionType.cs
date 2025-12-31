@@ -3,7 +3,7 @@
     public enum CollisionType
     {
         Live, //dynamic
-        Enviornment, //static
+        Environment, //static
         Ghost //dynamic?
     }
 }

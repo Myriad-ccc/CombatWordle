@@ -1,4 +1,6 @@
-﻿namespace CombatWordle
+﻿using System.Windows.Shapes;
+
+namespace CombatWordle
 {
     public class SceneManager
     {
@@ -9,6 +11,9 @@
         private readonly List<EntityData> ToRemove = [];
 
         private readonly Stack<Border> Visuals = [];
+        private readonly Stack<Ellipse> Overlays = [];
+
+        public bool ShowOverlays { get; set; } = true;
 
         public SceneManager(Canvas canvas)
         {
@@ -22,11 +27,8 @@
 
             foreach (var data in viewportEntities)
             {
-                Visible.Add(data);
-                if (Rendered.Add(data))
-                    Add(data);
-                Canvas.SetLeft(data.Entity.Visual, data.X);
-                Canvas.SetTop(data.Entity.Visual, data.Y);
+                UpdateVisual(data);
+                UpdateOverlay(data);
             }
 
             foreach (var data in Rendered.Where(e => !Visible.Contains(e)))
@@ -38,27 +40,76 @@
             }
         }
 
+        private void UpdateVisual(EntityData data)
+        {
+            Visible.Add(data);
+            if (Rendered.Add(data))
+                Add(data);
+            Canvas.SetLeft(data.Entity.Visual, data.X); //null error
+            Canvas.SetTop(data.Entity.Visual, data.Y);
+        }
+
+        private void UpdateOverlay(EntityData data)
+        {
+            var e = data.Entity;
+            if (e.HasOverlay)
+            {
+                if (e.Overlay == null)
+                {
+                    if (Overlays.Count > 0)
+                    {
+                        e.Overlay = Overlays.Pop();
+                        e.UpdateOverlay();
+                    }
+                    else
+                        e.CreateOverlay();
+                }
+
+                if (!ShowOverlays)
+                {
+                    if (e.Overlay.Parent != null)
+                        Canvas.Children.Remove(e.Overlay);
+                    return;
+                }
+
+                if (e.Overlay.Parent == null)
+                {
+                    Canvas.Children.Add(e.Overlay);
+                    Panel.SetZIndex(e.Overlay, 10);
+                }
+                if (e.Overlay != null)
+                {
+                    Canvas.SetLeft(e.Overlay, data.X + data.Width / 2 - e.Overlay.Width / 2);
+                    Canvas.SetTop(e.Overlay, data.Y + data.Height / 2 - e.Overlay.Height / 2);
+                }
+            }
+        }
+
         public void Add(EntityData data)
         {
             var e = data.Entity;
             if (e.Visual == null)
             {
-                e.Visual = Visuals.Count > 0 ? Visuals.Pop() : new();
-                e.Visual.Width = e.Width;
-                e.Visual.Height = e.Height;
-                e.Visual.BorderThickness = new(e.Area / (5 * e.Parameter));
-                e.Visual.Background = e.Color;
-                e.Visual.BorderBrush = e.BorderColor;
+                if (Visuals.Count > 0)
+                {
+                    e.Visual = Visuals.Pop();
+                    e.UpdateVisual();
+                }
+                else
+                    e.CreateVisual();
                 data.Visible = true;
             }
-
             if (e.Visual.Parent == null)
+            {
                 Canvas.Children.Add(e.Visual);
+                Panel.SetZIndex(e.Visual, 40);
+            }
         }
 
         public void Remove(EntityData data)
         {
             var e = data.Entity;
+
             if (e.Visual != null)
             {
                 Canvas.Children.Remove(e.Visual);
@@ -66,15 +117,19 @@
                 e.Visual = null;
                 data.Visible = false;
             }
+
+            if (e.Overlay != null)
+            {
+                Canvas.Children.Remove(e.Overlay);
+                Overlays.Push(e.Overlay);
+                e.Overlay = null;
+            }
         }
 
-        public IEnumerable<EntityData> EntitiesInArea(Rect area, List<EntityData> allEntities)
-        { // use spatial grid instead if possible
-            foreach (var entity in allEntities)
-            {
-                if (entity.Rect.IntersectsWith(area))
-                    yield return entity;
-            }
+        public void ClearCache()
+        {
+            Visuals.Clear();
+            Overlays.Clear();
         }
     }
 }

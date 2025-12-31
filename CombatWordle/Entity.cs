@@ -1,102 +1,60 @@
-﻿namespace CombatWordle
+﻿using System.Windows.Shapes;
+
+namespace CombatWordle
 {
     public static class EntityHelper
     {
-        public static Type[] EntityTypes = QOL.GetDerivedTypes<Entity>();
-        public static Type GetRandomEntityType() => EntityTypes[Random.Shared.Next(EntityTypes.Length)];
-
         public static T Create<T>(Func<T> func) where T : Entity => func();
-        //public static T Create<T>(Point pos) where T : Entity, new()
-        //{
-        //    var e = new T
-        //    {
-        //        Pos = pos
-        //    };
-        //    return e;
-        //}
-        //public static T Create<T>(Size size) where T : Entity, new()
-        //{
-        //    var e = new T
-        //    {
-        //        Width = size.Width,
-        //        Height = size.Height
-        //    };
-        //    return e;
-        //}
-        //public static T Create<T>(Point pos, Size size) where T : Entity, new()
-        //{
-        //    var e = new T
-        //    {
-        //        Pos = pos,
-        //        Width = size.Width,
-        //        Height = size.Height
-        //    };
-        //    return e;
-        //}
-
-        //public static T Create<T>(Func<T, Point> positionLogic) where T : Entity, new()
-        //{
-        //    var e = new T();
-        //    e.Pos = positionLogic(e);
-        //    return e;
-        //}
-        //public static T Create<T>(Func<T, Size> sizeLogic) where T : Entity, new()
-        //{
-        //    var e = new T();
-        //    var size = sizeLogic(e);
-        //    e.Width = size.Width;
-        //    e.Height = size.Height;
-        //    return e;
-        //}
-        //public static T Create<T>(Func<T, Point> positionLogic, Func<T, Size> sizeLogic) where T : Entity, new()
-        //{
-        //    var e = new T();
-        //    e.Pos = positionLogic(e);
-        //    var size = sizeLogic(e);
-        //    e.Width = size.Width;
-        //    e.Height = size.Height;
-        //    return e;
-        //}
-        //public static T Create<T>(Func<T, Size> sizeLogic, Func<T, Point> positionLogic) where T : Entity, new()
-        //{
-        //    var e = new T();
-        //    var size = sizeLogic(e);
-        //    e.Width = size.Width;
-        //    e.Height = size.Height;
-        //    e.Pos = positionLogic(e);
-        //    return e;
-        //}
-
-        //public static Entity CreateRandom()
-        //{
-        //    var type = GetRandomEntityType();
-        //    var e = (Entity)Activator.CreateInstance(type)!;
-        //    return e;
-        //}
     }
 
-    public abstract class Entity : IEntityAttributes, IInitialize
+    public abstract class Entity : IEntityAttributes
     {
         public double Width { get; set; } = 0;
         public double Height { get; set; } = 0;
         public bool CanCollide { get; set; } = false;
         public CollisionType CollisionType { get; set; }
 
-        public Border Visual;
+        public Border Visual { get; set; }
+        public Ellipse Overlay { get; set; }
+        public bool HasOverlay { get; set; }
         public Brush Color { get; set; } = Brushes.Gray;
         public Brush BorderColor { get; set; } = Brushes.DarkGray;
 
-        public Point Pos { get; set; } = new();
-        public Size Size => new(Width, Height);
+        public double DetectionRange { get; set; }
 
-        public Rect Rect => new(Pos, Size);
+        public Point Pos { get; set; } = new();
         public double X => Pos.X;
         public double Y => Pos.Y;
+
+        public Size Size => new(Width, Height);
+        public Rect Rect => new(Pos, Size);
+
+        public Point Center => new(X + Width / 2, Y + Height / 2);
 
         public double Area => Width * Height;
         public double Parameter => 2 * (Width + Height);
 
         public Entity() => SetAttributes();
+        public Entity(Point pos)
+        {
+            Pos = pos;
+            SetAttributes();
+        }
+
+        public Entity(Size size)
+        {
+            Width = size.Width;
+            Height = size.Height;
+            SetAttributes();
+        }
+
+        public Entity(Point pos, Size size)
+        {
+            Pos = pos;
+            Width = size.Width;
+            Height = size.Height;
+            SetAttributes();
+        }
 
         public virtual void SetAttributes()
         {
@@ -107,7 +65,45 @@
             BorderColor = Brushes.DarkGray;
         }
 
-        public virtual void IInitialize() { }
+        public void CreateVisual()
+        {
+            Visual = new Border();
+            UpdateVisual();
+        }
+
+        public void UpdateVisual()
+        {
+            Visual.Width = Width;
+            Visual.Height = Height;
+            Visual.BorderThickness = new(Area / (5 * Parameter));
+            Visual.Background = Color;
+            Visual.BorderBrush = BorderColor;
+        }
+
+        public void CreateOverlay()
+        {
+            Overlay = new();
+            UpdateOverlay();
+            HasOverlay = true;
+        }
+
+        public void CreateOverlay(double? opacity = null, Brush fill = null, Brush stroke = null, double? strokeThickness = null)
+        {
+            Overlay = new();
+            UpdateOverlay(opacity, fill, stroke, strokeThickness);
+            HasOverlay = true;
+        }
+
+        public void UpdateOverlay(double? opacity = null, Brush fill = null, Brush stroke = null, double? strokeThickness = null)
+        {
+            Overlay.IsHitTestVisible = false;
+            Overlay.Fill = fill ?? Color;
+            Overlay.Stroke = stroke ?? BorderColor;
+            Overlay.StrokeThickness = strokeThickness ?? 1;
+            Overlay.Opacity = opacity ?? 0.35;
+            Overlay.Width = DetectionRange * 2;
+            Overlay.Height = DetectionRange * 2;
+        }
     }
 
     public interface IEntityAttributes
@@ -121,5 +117,11 @@
         public void SetAttributes();
     }
 
-    public interface IInitialize { }
+    public interface ILive
+    {
+        public double DX { get; set; }
+        public double DY { get; set; }
+        public double Speed { get; set; }
+        public double DetectionRange { get; set; }
+    }
 }

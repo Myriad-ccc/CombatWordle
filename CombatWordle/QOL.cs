@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Security.Policy;
 using System.Windows.Shapes;
 
 namespace CombatWordle
@@ -50,51 +51,15 @@ namespace CombatWordle
             return new(w, h);
         }
 
-        public static void DrawGrid(Canvas canvas, int width, int height, int cellSize, Brush? color = null, double strokeThickness = 1, double opacity = 0.5)
-        {
-            var grid = new Grid()
-            {
-                IsHitTestVisible = false,
-                Opacity = opacity
-            };
-            canvas.Children.Add(grid);
-
-            color ??= Brushes.Green;
-
-            for (int x = 0; x <= width; x += cellSize)
-            {
-                var line = new Line()
-                {
-                    X1 = x,
-                    X2 = x,
-                    Y1 = 0,
-                    Y2 = height,
-                    Stroke = color,
-                    StrokeThickness = strokeThickness
-                };
-                grid.Children.Add(line);
-            }
-
-            for (int y = 0; y <= height; y += cellSize)
-            {
-                var line = new Line()
-                {
-                    X1 = 0,
-                    X2 = width,
-                    Y1 = y,
-                    Y2 = y,
-                    Stroke = color,
-                    StrokeThickness = strokeThickness
-                };
-                grid.Children.Add(line);
-            }
-        }
-
         public static Type[] GetDerivedTypes<T>() =>
             Assembly
             .GetAssembly(typeof(T))!
             .GetTypes()
             .Where(t => typeof(T).IsAssignableFrom(t) && t != typeof(T) && !t.IsAbstract)
             .ToArray();
+
+        public static double GetDistance(Point one, Point two) => Math.Sqrt(Math.Pow(two.X - one.X, 2) + Math.Pow(two.Y - one.Y, 2));
+        public static double GetDistanceSquared(Point one, Point two) => Math.Pow(two.X - one.X, 2) + Math.Pow(two.Y - one.Y, 2);
+
     }
 }

@@ -1,4 +1,7 @@
-﻿namespace CombatWordle
+﻿using System;
+using System.Numerics;
+
+namespace CombatWordle
 {
     public class GameState
     {
@@ -10,7 +13,8 @@
 
         public List<EntityData> LiveEntities { get; } = [];
 
-        public List<Player> Players { get; } = [];
+        public Player Player;
+        public List<Enemy> Enemies { get; } = [];
         public List<Rock> Rocks { get; set; } = [];
 
         public Point MapCenter => new(Map.Center.X, Map.Center.Y);
@@ -24,21 +28,27 @@
 
         private void AddPlayer()
         {
-            var playerMapCenter = new Point(Map.Center.X - 40 / 2, Map.Center.Y - 40 / 2);
-            var player = new Player
-            {
-                Pos = playerMapCenter,
-                Width = 80,
-                Height = 80
-            };
-            AddEntity(player);
+            Player = new Player(new Size(80, 80));
+            Player.Pos = new Point(Map.Center.X - Player.Width / 2, Map.Center.Y - Player.Height / 2);
+            //Player.CreateOverlay(0.1);
+            AddEntity(Player);
         }
 
         public void AddTestRock()
         {
             var rock = new Rock();
-            rock.Pos = new Point(Players[0].X, Players[0].Y - Players[0].Height - rock.Height);
+            rock.Pos = new Point(Player.X, Player.Y - Player.Height - rock.Height);
             AddEntity(rock, force: false);
+        }
+
+        public void AddTestEnemy()
+        {
+            var enemy = new Enemy(new Size(80, 80));
+            var x = QOL.NextDoubleInRange(Player.X + Player.Width / 2 - Player.Width * 3 - enemy.Width, Player.X + Player.Width * 4 + enemy.Width);
+            var y = QOL.NextDoubleInRange(Player.Y + Player.Height / 2 - Player.Height * 3 - enemy.Height, Player.Y + Player.Height * 4 + enemy.Height);
+            enemy.Pos = new(x, y);
+            enemy.CreateOverlay(0.1);
+            AddEntity(enemy);
         }
 
         public bool InsideMap(Entity entity) => Map.RectInside(entity.Rect);
@@ -86,7 +96,7 @@
             return spawnAttempts < 100;
         }
 
-        private bool AddEntity(Entity entity, bool force = false, bool random = false)
+        private bool AddEntity(Entity entity, bool force = false, bool random = false) //refactor and separate later
         {
             if (force)
             {
@@ -130,18 +140,56 @@
             if (entity.CollisionType == CollisionType.Live) LiveEntities.Add(data);
             spatialGrid.Add(data);
 
-            if (entity is Player player) Players.Add(player);
+            if (entity is Enemy enemy) Enemies.Add(enemy);
             if (entity is Rock rock) Rocks.Add(rock);
         }
 
-        //public void PopulateMap<T>(int count)
-        //    where T : Entity, new()
-        //{
-        //    for (int i = 0; i < count; i++)
-        //        AddEntity(new T(), force: false, random: true);
-        //}
+        public (double x, double y) NormalizeSpeed(double dx, double dy, double speed, double dt)
+        {
+            if (dx != 0 || dy != 0)
+            {
+                double len = Math.Sqrt(dx * dx + dy * dy);
+                dx /= len;
+                dy /= len;
+            }
+            return (dx * speed * dt, dy * speed * dt);
+        }
 
-        public void PopulateMap<T>(int count) 
+        public void EnemyAI(Enemy enemy, double dt)
+        {
+            double dist = QOL.GetDistance(enemy.Center, Player.Center);
+            switch (enemy.State)
+            {
+                case EnemyState.Idle:
+                    if (dist < enemy.DetectionRange) enemy.State = EnemyState.Chasing;
+                    break;
+                case EnemyState.Chasing:
+                    if (Player.CollisionType == CollisionType.Ghost)
+                    {
+                        enemy.State = EnemyState.Idle;
+                        return;
+                    }
+
+                    double dx = 1 * Math.Sign(enemy.X - Player.X);
+                    double dy = 1 * Math.Sign(enemy.Y - Player.Y);
+                    (dx, dy) = NormalizeSpeed(dx, dy, enemy.Speed, dt);
+                    enemy.Pos = new(enemy.X - dx, enemy.Y - dy);
+                    if (dist > enemy.DetectionRange * 1.5) enemy.State = EnemyState.Idle;
+                    if (dist < enemy.AgroRange) enemy.State = EnemyState.Attacking;
+                    break;
+                case EnemyState.Attacking:
+                    if (Player.CollisionType == CollisionType.Ghost)
+                    {
+                        enemy.State = EnemyState.Idle;
+                        return;
+                    }
+
+                    if (dist > enemy.AgroRange) enemy.State = EnemyState.Chasing;
+                    break;
+            }
+        }
+
+        public void PopulateMap<T>(int count)
             where T : Entity, new()
         {
             for (int i = 0; i < count; i++)

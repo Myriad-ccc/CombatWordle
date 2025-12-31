@@ -17,16 +17,15 @@
 
         private string GetRandomRockType() => RockTypes.Keys.ElementAt(Random.Shared.Next(RockTypes.Count));
 
-        public Rock() : base()
-        {
-            SetAttributes();
-            RandomizeSize();
-        }
+        public Rock() : base() => RandomizeSize();
+        public Rock(Point pos) : base(pos) => RandomizeSize();
+        public Rock(Size size) : base(size) { }
+        public Rock(Point pos, Size size) : base(pos, size) { }
 
         public override void SetAttributes()
         {
             CanCollide = true;
-            CollisionType = CollisionType.Enviornment;
+            CollisionType = CollisionType.Environment;
 
             Color = Brushes.Gray;
             BorderColor = Brushes.LightGray;
