@@ -68,9 +68,9 @@
                     <Viewbox Width="48" Height="48">
                         <TextBlock
                             FontSize="48"
+                            Foreground="Gray"
                             Text="-"
-                            TextAlignment="Center"
-                            Foreground="Gray"/>
+                            TextAlignment="Center" />
                     </Viewbox>
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
@@ -96,9 +96,9 @@
                     <Viewbox Width="48" Height="48">
                         <TextBlock
                             FontSize="48"
+                            Foreground="Gray"
                             Text="X"
-                            TextAlignment="Center"
-                            Foreground="Gray"/>
+                            TextAlignment="Center" />
                     </Viewbox>
                     <Button.Template>
                         <ControlTemplate TargetType="Button">

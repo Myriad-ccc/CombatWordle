@@ -14,22 +14,18 @@
         public List<Enemy> Enemies { get; } = [];
         public List<Rock> Rocks { get; set; } = [];
 
-        public List<Entity> EditorEntities { get; set; } = [];
-
         public Point MapCenter => new(Map.Center.X, Map.Center.Y);
 
         public GameState(int mapWidth = 12800, int mapHeight = 12800)
         {
             Map = new(mapWidth, mapHeight);
             spatialGrid = new(mapWidth, mapHeight);
-            AddPlayer();
         }
 
-        private void AddPlayer()
+        public void AddPlayer()
         {
             Player = new Player(new Size(80, 80));
             Player.Pos = new Point(Map.Center.X - Player.Width / 2, Map.Center.Y - Player.Height / 2);
-            //Player.CreateOverlay(0.1);
             AddEntity(Player);
         }
 
@@ -50,7 +46,7 @@
             AddEntity(enemy);
         }
 
-        public bool InsideMap(Entity entity) => Map.RectInside(entity.Rect);
+        public bool InsideMap(Rect rect) => Map.RectInside(rect);
         public bool Colliding(Entity entity)
         {
             foreach (var data in spatialGrid.Search(entity.Rect))
@@ -62,7 +58,7 @@
         }
 
         public bool CanSpawn(Entity entity) =>
-            InsideMap(entity)
+            InsideMap(entity.Rect)
             && !Colliding(entity);
 
         private Point GetRandomPosition(Entity entity) =>
@@ -87,7 +83,7 @@
             do
             {
                 RerollSpawn(entity);
-                if (!InsideMap(entity)) continue;
+                if (!InsideMap(entity.Rect)) continue;
                 if (force || (!force && !Colliding(entity)))
                     return true;
             }
@@ -143,7 +139,7 @@
             if (entity is Rock rock) Rocks.Add(rock);
         }
 
-        public (double x, double y) NormalizeSpeed(double dx, double dy, double speed, double dt)
+        public static (double x, double y) NormalizeSpeed(double dx, double dy, double speed, double dt)
         {
             if (dx != 0 || dy != 0)
             {
@@ -194,13 +190,6 @@
             for (int i = 0; i < count; i++)
                 AddEntity(new T(),
                     force: false, random: true);
-        }
-
-        public void AddEditorEntity(Entity entity)
-        {
-            if (!InsideMap(entity)) return;
-            EditorEntities.Add(entity);
-            AddToEntities(entity);
         }
     }
 }

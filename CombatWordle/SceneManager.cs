@@ -20,7 +20,7 @@ namespace CombatWordle
             Canvas = canvas;
         }
 
-        public void Update(IEnumerable<EntityData> viewportEntities)
+        public void UpdateGame(IEnumerable<EntityData> viewportEntities)
         {
             Visible.Clear();
             ToRemove.Clear();
