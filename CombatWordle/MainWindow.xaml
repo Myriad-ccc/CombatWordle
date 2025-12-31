@@ -33,7 +33,8 @@
         <Grid
             x:Name="TitleBar"
             Grid.Row="0"
-            Background="#323232">
+            Background="#323232"
+            MouseDown="TitleBar_MouseDown">
             <TextBlock
                 x:Name="TitleTextShadow"
                 Padding="5,5,0,0"
@@ -47,7 +48,6 @@
                 HorizontalAlignment="Left"
                 VerticalAlignment="Top"
                 FontSize="40"
-                MouseDown="TitleText_MouseDown"
                 MouseMove="Window_MouseMove"
                 MouseUp="Window_MouseUp"
                 Text="{Binding Title, RelativeSource={RelativeSource AncestorType=Window}}" />
@@ -305,14 +305,14 @@
             </Grid>
             <Button
                 x:Name="EditorSave"
-                HorizontalAlignment="Left"
+                HorizontalAlignment="Right"
                 VerticalAlignment="Top"
                 Background="Transparent"
                 BorderThickness="0"
                 Click="EditorSave_Click"
                 Content="Save"
                 FontSize="50"
-                Foreground="Green"
+                Foreground="White"
                 Visibility="Hidden">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">

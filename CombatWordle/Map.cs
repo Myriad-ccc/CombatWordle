@@ -57,10 +57,4 @@ namespace CombatWordle
                 && rect.Bottom <= Height - Thickness;
         }
     }
-
-    public enum MapSpace
-    {
-        Total,
-        Available
-    }
 }

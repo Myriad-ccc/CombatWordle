@@ -1,7 +1,4 @@
-﻿using System;
-using System.Numerics;
-
-namespace CombatWordle
+﻿namespace CombatWordle
 {
     public class GameState
     {
@@ -16,6 +13,8 @@ namespace CombatWordle
         public Player Player;
         public List<Enemy> Enemies { get; } = [];
         public List<Rock> Rocks { get; set; } = [];
+
+        public List<Entity> EditorEntities { get; set; } = [];
 
         public Point MapCenter => new(Map.Center.X, Map.Center.Y);
 
@@ -197,12 +196,11 @@ namespace CombatWordle
                     force: false, random: true);
         }
 
-        public void PopulateMap<T>(decimal percentage, MapSpace type)
+        public void AddEditorEntity(Entity entity)
         {
-            if (type == MapSpace.Available)
-            {
-
-            }
+            if (!InsideMap(entity)) return;
+            EditorEntities.Add(entity);
+            AddToEntities(entity);
         }
     }
 }

@@ -21,8 +21,8 @@ namespace CombatWordle
             {
                 var scaleX = CameraScale.ScaleX == 0 ? 1 : CameraScale.ScaleX;
                 return new(
-                    -CameraTransform.X / scaleX,
-                    -CameraTransform.Y / scaleX,
+                    -CameraTransform.X,
+                    -CameraTransform.Y,
                     ActualWidth / scaleX,
                     ActualHeight / scaleX);
             }
@@ -33,13 +33,15 @@ namespace CombatWordle
             get
             {
                 var temp = Viewport;
-                temp.Inflate(600, 600); //originally 150, 150
+                temp.Inflate(100, 100); //originally 150, 150
                 return temp;
             }
         }
 
-        private bool WindowDragging = false;
-        private Point DragOffset;
+        private Point CameraCenter => new(
+            ActualWidth / (CameraScale.ScaleX * 2) - CameraTransform.X,
+            ActualHeight / (CameraScale.ScaleY * 2) - CameraTransform.Y);
+
         private readonly HashSet<Key> PressedKeys = [];
         private bool DraggingCamera;
         private Point LastMousePos;
@@ -53,37 +55,40 @@ namespace CombatWordle
 
         private StringBuilder debugInfo = new();
         private StringBuilder entityCounter = new();
+        private Point ActiveMousePos = new();
 
         private bool gameMode = false;
         private bool editorMode = false;
 
+        private const int cellCellSize = 128;
         private Grid cellGrid;
+        private const int editorCellSize = 64;
         private Grid editorGrid;
 
+        private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+                DragMove();
+        }
         private void Window_KeyDown(object sender, KeyEventArgs e) => PressedKeys.Add(e.Key);
         private void Window_KeyUp(object sender, KeyEventArgs e) => PressedKeys.Remove(e.Key);
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton == MouseButton.Left)
             {
-                if (TitleBar.IsMouseOver)
+                if (editorMode)
                 {
-                    D($"Titlebar mousedown {DateTime.Now}");
-                    WindowDragging = true;
-                    var mouseLoc = PointToScreen(e.GetPosition(this));
-                    DragOffset = new Point(mouseLoc.X - Left, mouseLoc.Y - Top);
+                    D($"[{DateTime.Now}]Started dragging camera");
+                    DraggingCamera = true;
+                    LastMousePos = e.GetPosition(this);
                     Mouse.Capture((UIElement)sender);
                 }
-                else
+            }
+            else if (e.ChangedButton == MouseButton.Right)
+            {
+                if (editorMode)
                 {
-                    if (editorMode)
-                    {
-                        D($"Canvas mousedown {DateTime.Now}");
-                        D($"Dragging camera {DateTime.Now}");
-                        DraggingCamera = true;
-                        LastMousePos = e.GetPosition(this);
-                        Mouse.Capture((UIElement)sender);
-                    }
+                    EditorPlace(e.GetPosition((UIElement)GameCanvas.Parent));
                 }
             }
         }
@@ -91,15 +96,9 @@ namespace CombatWordle
         {
             if (e.ChangedButton == MouseButton.Left)
             {
-                if (WindowDragging)
+                if (editorMode && DraggingCamera)
                 {
-                    WindowDragging = false;
-                    if (editorMode)
-                        DraggingCamera = false;
-                }
-                else if (editorMode && DraggingCamera)
-                {
-                    D($"Stopped dragging camera {DateTime.Now}");
+                    D($"[{DateTime.Now}] Stopped dragging camera");
                     var currentPos = e.GetPosition(this);
 
                     double dx = currentPos.X - LastMousePos.X;
@@ -116,24 +115,19 @@ namespace CombatWordle
         }
         private void Window_MouseMove(object sender, MouseEventArgs e)
         {
+            var temp = e.GetPosition((UIElement)GameCanvas.Parent);
+            ActiveMousePos = new(temp.X / CameraScale.ScaleX - CameraTransform.X, temp.Y / CameraScale.ScaleY - CameraTransform.Y);
             if (e.LeftButton == MouseButtonState.Pressed)
             {
-                if (WindowDragging)
+                if (editorMode && DraggingCamera)
                 {
-                    var screenLoc = PointToScreen(e.GetPosition(this));
-
-                    Left = screenLoc.X - DragOffset.X;
-                    Top = screenLoc.Y - DragOffset.Y;
-                }
-                else if (editorMode && DraggingCamera)
-                {
-                    D($"Moving camera {DateTime.Now}");
+                    D($"[{DateTime.Now}] Moving camera");
                     var currentPos = e.GetPosition(this);
                     double dx = currentPos.X - LastMousePos.X;
                     double dy = currentPos.Y - LastMousePos.Y;
 
-                    CameraTransform.X += dx;
-                    CameraTransform.Y += dy;
+                    CameraTransform.X += dx / CameraScale.ScaleX;
+                    CameraTransform.Y += dy / CameraScale.ScaleY;
 
                     LastMousePos = currentPos;
                 }
@@ -208,7 +202,7 @@ namespace CombatWordle
         private void EditorSave_Click(object sender, RoutedEventArgs e)
         {
 
-        } //tbi
+        }
         private void EditorGridTitle_Click(object sender, RoutedEventArgs e)
         {
             bool isShown = editorGrid.Visibility == Visibility.Visible;
@@ -231,7 +225,7 @@ namespace CombatWordle
         public MainWindow()
         {
             InitializeComponent();
-            Debug.WriteLine($"Starting {DateTime.Now}");
+
             lastTime = Uptime.Elapsed.TotalSeconds;
 
             TitleText.Foreground = QOL.RandomColor();
@@ -246,14 +240,12 @@ namespace CombatWordle
             Panel.SetZIndex(map, 0);
         }
 
-        private void DrawCellGrid()
+        private Grid DrawGrid(int cellSize = 128, SolidColorBrush color = null, double stroke = 1.0, double opacity = 0.5)
         {
-            var cellSize = 128;
-
             cellGrid = new Grid()
             {
                 IsHitTestVisible = false,
-                Opacity = 0.5,
+                Opacity = opacity,
                 Visibility = Visibility.Hidden
             };
             GameCanvas.Children.Add(cellGrid);
@@ -267,8 +259,8 @@ namespace CombatWordle
                     X2 = x,
                     Y1 = 0,
                     Y2 = map.Height,
-                    Stroke = Brushes.Green,
-                    StrokeThickness = 1
+                    Stroke = color ?? Brushes.Green,
+                    StrokeThickness = stroke
                 };
                 cellGrid.Children.Add(line);
             }
@@ -281,11 +273,12 @@ namespace CombatWordle
                     X2 = map.Width,
                     Y1 = y,
                     Y2 = y,
-                    Stroke = Brushes.Green,
-                    StrokeThickness = 1
+                    Stroke = color ?? Brushes.Green,
+                    StrokeThickness = stroke
                 };
                 cellGrid.Children.Add(line);
             }
+            return cellGrid;
         }
 
         private void PlayerMovement(double dt)
@@ -429,7 +422,7 @@ namespace CombatWordle
             sceneManager.ClearCache();
             GC.Collect();
         }
-        private void DebugGo(double dt)
+        private void GameDebug(double dt)
         {
             debugInfo.AppendLine($"fps:{QOL.GetAverageFPS(dt):F0}");
             debugInfo.AppendLine($"dt:{dt:F3}");
@@ -438,35 +431,68 @@ namespace CombatWordle
             entityCounter.AppendLine($"enemies:{game.Enemies.Count}");
             DebugText.Text = debugInfo.ToString();
             EntityCounter.Text = entityCounter.ToString();
-            Debug.WriteLine($"{Viewport.Width}, {Viewport.Height}, {Viewport.X}, {Viewport.Y}");
         }
 
         private void EditorMove(double dt)
         {
-            double pan = 1000 * dt;
+            double pan = 500 * dt;
             if (PressedKeys.Contains(Key.W) || PressedKeys.Contains(Key.Up)) CameraTransform.Y += pan;
             if (PressedKeys.Contains(Key.A) || PressedKeys.Contains(Key.Left)) CameraTransform.X += pan;
             if (PressedKeys.Contains(Key.D) || PressedKeys.Contains(Key.Right)) CameraTransform.X -= pan;
             if (PressedKeys.Contains(Key.S) || PressedKeys.Contains(Key.Down)) CameraTransform.Y -= pan;
         }
 
+        private void EditorDebug()
+        {
+            debugInfo.AppendLine($"mx:{ActiveMousePos.X:F1}");
+            debugInfo.AppendLine($"my:{ActiveMousePos.Y:F1}");
+            debugInfo.AppendLine($"cx:{CameraCenter.X:F1}");
+            debugInfo.AppendLine($"cy:{CameraCenter.Y:F1}");
+        }
+
+        private void GlobalDebug()
+        {
+            DebugText.Text = debugInfo.ToString();
+        }
+
+        private void GameUpdate(double dt)
+        {
+            entityCounter.Clear();
+            GameShortcuts();
+            Move(dt);
+            foreach (var entityData in game.LiveEntities)
+                grid.Update(entityData);
+            GameDebug(dt);
+        }
+
+        private void EditorUpdate(double dt)
+        {
+            EditorMove(dt);
+            EditorDebug();
+        }
+
+        private void EditorPlace(Point screenPos)
+        {
+            double x = (screenPos.X / CameraScale.ScaleX) - CameraTransform.X;
+            double y = (screenPos.Y / CameraScale.ScaleY) - CameraTransform.Y;
+
+            double cellX = Math.Floor(x / editorCellSize) * editorCellSize;
+            double cellY = Math.Floor(y / editorCellSize) * editorCellSize;
+
+            var rock = new Rock(new Point(cellX, cellY), new Size(editorCellSize, editorCellSize));
+            game.AddEditorEntity(rock);
+            D($"[{DateTime.Now}] Placed block at {cellX}, {cellY}");
+        }
+
         private void Update(double dt)
         {
+            debugInfo.Clear();
             if (gameMode)
-            {
-                debugInfo.Clear();
-                entityCounter.Clear();
-                GameShortcuts();
-                Move(dt);
-                foreach (var entityData in game.LiveEntities)
-                    grid.Update(entityData);
-                sceneManager.Update(game.spatialGrid.Search(ViewportPlus));
-                DebugGo(dt);
-            }
+                GameUpdate(dt);
             if (editorMode)
-            {
-                EditorMove(dt);
-            }
+                EditorUpdate(dt);
+            sceneManager.Update(game.spatialGrid.Search(ViewportPlus));
+            GlobalDebug();
         }
 
         private double CurrentFrame()
@@ -477,28 +503,25 @@ namespace CombatWordle
             return dt;
         }
 
-        private void OnRender(object sender, EventArgs e)
-        {
-            Update(CurrentFrame());
-        }
+        private void OnRender(object sender, EventArgs e) => Update(CurrentFrame());
 
         private void Start()
         {
             StartMenu.Visibility = Visibility.Hidden;
             GameCanvas.Visibility = Visibility.Visible;
+            DebugText.Visibility = Visibility.Visible;
 
             if (gameMode)
             {
-                DrawCellGrid();
+                cellGrid = DrawGrid(cellCellSize, Brushes.Green, 1, 0.5);
                 cellGrid.Visibility = Visibility.Visible;
 
-                DebugText.Visibility = Visibility.Visible;
                 EntityCounter.Visibility = Visibility.Visible;
                 GameOverlay.Visibility = Visibility.Visible;
             }
             if (editorMode)
             {
-                DrawEditorGrid();
+                editorGrid = DrawGrid(editorCellSize, Brushes.White, 1, 0.05);
                 editorGrid.Visibility = Visibility.Visible;
 
                 EditorSave.Visibility = Visibility.Visible;
@@ -508,54 +531,12 @@ namespace CombatWordle
             CompositionTarget.Rendering += OnRender;
         }
 
-        private void DrawEditorGrid()
-        {
-            var cellSize = 64;
-
-            editorGrid = new Grid()
-            {
-                IsHitTestVisible = false,
-                Opacity = 0.05,
-                Visibility = Visibility.Hidden
-            };
-            GameCanvas.Children.Add(editorGrid);
-            Panel.SetZIndex(editorGrid, 20);
-
-            for (int x = 0; x <= map.Width; x += cellSize)
-            {
-                var line = new Line()
-                {
-                    X1 = x,
-                    X2 = x,
-                    Y1 = 0,
-                    Y2 = map.Height,
-                    Stroke = Brushes.White,
-                    StrokeThickness = 1
-                };
-                editorGrid.Children.Add(line);
-            }
-
-            for (int y = 0; y <= map.Height; y += cellSize)
-            {
-                var line = new Line()
-                {
-                    X1 = 0,
-                    X2 = map.Width,
-                    Y1 = y,
-                    Y2 = y,
-                    Stroke = Brushes.White,
-                    StrokeThickness = 1
-                };
-                editorGrid.Children.Add(line);
-            }
-        }
-
         private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             if (!editorMode) return;
             double zoomIn = 1.1;
             double factor = Math.Pow(zoomIn, e.Delta / 120.0);
-            double newScale = Math.Max(0.5, Math.Min(CameraScale.ScaleX * factor, 10.0));
+            double newScale = Math.Max(0.35, Math.Min(CameraScale.ScaleX * factor, 5.0));
 
             CameraScale.ScaleX = newScale;
             CameraScale.ScaleY = newScale;
