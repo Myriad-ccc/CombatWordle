@@ -2,7 +2,7 @@
 {
     public class GameState
     {
-        public Map Map { get; private set; }
+        public Map Map;
         public SpatialGrid spatialGrid;
 
         public List<Entity> Entities { get; } = [];
@@ -16,10 +16,10 @@
 
         public Point MapCenter => new(Map.Center.X, Map.Center.Y);
 
-        public GameState(int mapWidth = 12800, int mapHeight = 12800)
+        public GameState(Map map)
         {
-            Map = new(mapWidth, mapHeight);
-            spatialGrid = new(mapWidth, mapHeight);
+            Map = map;
+            spatialGrid = new(map.Width, map.Height);
         }
 
         public void AddPlayer()

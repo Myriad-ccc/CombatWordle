@@ -48,7 +48,7 @@ namespace CombatWordle
         private Editor editor;
         private SceneManager sceneManager;
 
-        private Map map => game.Map;
+        private Map Map;
         private SpatialGrid grid => game.spatialGrid;
         private Player player => game.Player;
 
@@ -59,20 +59,13 @@ namespace CombatWordle
         private bool gameMode = false;
         private bool editorMode = false;
 
+        private bool quickStart = false;
+        private TaskCompletionSource<bool> MapSizeSet;
+
         private const int cellSize = 128;
         private GridHelper cellGrid;
         private const int editorCellSize = 64;
         private GridHelper editorGrid;
-
-        private void UpdateEditorColor()
-        {
-            if (RedSlider == null || GreenSlider == null || BlueSlider == null
-                || RedSliderText == null || GreenSliderText == null || BlueSliderText == null) return;
-            var color = new SolidColorBrush(Color.FromRgb((byte)RedSlider.Value, (byte)GreenSlider.Value, (byte)BlueSlider.Value));
-            RedSliderText.Foreground = color;
-            GreenSliderText.Foreground = color;
-            BlueSliderText.Foreground = color;
-        }
 
         private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -84,24 +77,38 @@ namespace CombatWordle
                 TitleTextShadow.Foreground = QOL.RandomColor();
             }
         }
+        private void TitleText_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Right)
+            {
+                TitleTextShadow.Foreground = QOL.RandomColor();
+                TitleText.Foreground = QOL.RandomColor();
+            }
+            else if (e.ChangedButton == MouseButton.Left)
+                TitleBar_MouseDown(sender, e);
+        }
+        private void ClosingButton_Click(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+        private void BackButton_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
         private void Window_KeyDown(object sender, KeyEventArgs e) => PressedKeys.Add(e.Key);
         private void Window_KeyUp(object sender, KeyEventArgs e) => PressedKeys.Remove(e.Key);
 
         private void GameCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ChangedButton == MouseButton.Left)
+            if (editorMode)
             {
-                if (editorMode)
+                if (e.ChangedButton == MouseButton.Right)
                 {
                     QOL.D("Started dragging camera");
                     DraggingCamera = true;
                     LastMousePos = e.GetPosition(this);
                     Mouse.Capture((UIElement)sender);
                 }
-            }
-            else if (e.ChangedButton == MouseButton.Right)
-            {
-                if (editorMode)
+                else if (e.ChangedButton == MouseButton.Left)
                 {
                     EditorPlace(e.GetPosition((UIElement)GameCanvas.Parent));
                 }
@@ -109,7 +116,7 @@ namespace CombatWordle
         }
         private void GameCanvas_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            if (e.ChangedButton == MouseButton.Left)
+            if (e.ChangedButton == MouseButton.Right)
             {
                 if (editorMode && DraggingCamera)
                 {
@@ -130,25 +137,33 @@ namespace CombatWordle
         }
         private void GameCanvas_MouseMove(object sender, MouseEventArgs e)
         {
-            var temp = e.GetPosition((UIElement)GameCanvas.Parent);
-            ActiveMousePos = new(temp.X / CameraScale.ScaleX - CameraTransform.X, temp.Y / CameraScale.ScaleY - CameraTransform.Y);
-            if (e.LeftButton == MouseButtonState.Pressed)
+            var rawMousePos = e.GetPosition((UIElement)GameCanvas.Parent);
+            ActiveMousePos = new(rawMousePos.X / CameraScale.ScaleX - CameraTransform.X, rawMousePos.Y / CameraScale.ScaleY - CameraTransform.Y);
+
+            if (editorMode)
             {
-                if (editorMode && DraggingCamera)
+                if (e.RightButton == MouseButtonState.Pressed)
                 {
-                    QOL.D("Moving camera");
-                    var currentPos = e.GetPosition(this);
-                    double dx = currentPos.X - LastMousePos.X;
-                    double dy = currentPos.Y - LastMousePos.Y;
+                    if (DraggingCamera)
+                    {
+                        QOL.D("Moving camera");
+                        var currentPos = e.GetPosition(this);
+                        double dx = currentPos.X - LastMousePos.X;
+                        double dy = currentPos.Y - LastMousePos.Y;
 
-                    CameraTransform.X += dx / CameraScale.ScaleX;
-                    CameraTransform.Y += dy / CameraScale.ScaleY;
+                        CameraTransform.X += dx / CameraScale.ScaleX;
+                        CameraTransform.Y += dy / CameraScale.ScaleY;
 
-                    LastMousePos = currentPos;
+                        LastMousePos = currentPos;
+                    }
+                }
+                else if (e.LeftButton == MouseButtonState.Pressed)
+                {
+                    EditorPlace(e.GetPosition((UIElement)GameCanvas.Parent));
+                    e.Handled = true;
                 }
             }
         }
-
         private void GameCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             if (!editorMode) return;
@@ -159,19 +174,6 @@ namespace CombatWordle
             CameraScale.ScaleX = newScale;
             CameraScale.ScaleY = newScale;
         }
-
-        private void TitleText_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ChangedButton == MouseButton.Right)
-            {
-                if (sender is TextBlock tb)
-                    tb.Foreground = QOL.RandomColor();
-            }
-            else if (e.ChangedButton == MouseButton.Left)
-                TitleBar_MouseDown(sender, e);
-        }
-        private void ClosingButton_Click(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
-        private void MinimizeButton_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
         private void PlayButton_Click(object sender, RoutedEventArgs e) { gameMode = true; Start(); }
         private void EditorButton_Click(object sender, RoutedEventArgs e) { editorMode = true; Start(); }
@@ -250,6 +252,15 @@ namespace CombatWordle
         private void RedSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdateEditorColor();
         private void GreenSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdateEditorColor();
         private void BlueSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdateEditorColor();
+        private void UpdateEditorColor()
+        {
+            if (RedSlider == null || GreenSlider == null || BlueSlider == null
+                || RedSliderText == null || GreenSliderText == null || BlueSliderText == null) return;
+            var color = new SolidColorBrush(Color.FromRgb((byte)RedSlider.Value, (byte)GreenSlider.Value, (byte)BlueSlider.Value));
+            RedSliderText.Foreground = color;
+            GreenSliderText.Foreground = color;
+            BlueSliderText.Foreground = color;
+        }
 
         public MainWindow()
         {
@@ -260,13 +271,10 @@ namespace CombatWordle
             TitleText.Foreground = QOL.RandomColor();
             TitleTextShadow.Foreground = QOL.RandomColor();
 
-            game = new GameState();
-            sceneManager = new(GameCanvas);
+            MapWidthContent.Text = "12800";
+            MapHeightContent.Text = "12800";
 
-            GameCanvas.Children.Add(map);
-            Canvas.SetLeft(map, 0);
-            Canvas.SetTop(map, 0);
-            Panel.SetZIndex(map, 0);
+            sceneManager = new(GameCanvas);
         }
 
         private void PlayerMovement(double dt)
@@ -286,10 +294,10 @@ namespace CombatWordle
             Rect newRect;
 
             double gap = 1e-10;
-            double leftEdge = map.Thickness;
-            double topEdge = map.Thickness;
-            double rightEdge = map.Width - map.Thickness - player.Width;
-            double bottomEdge = map.Height - map.Thickness - player.Height;
+            double leftEdge = Map.Thickness;
+            double topEdge = Map.Thickness;
+            double rightEdge = Map.Width - Map.Thickness - player.Width;
+            double bottomEdge = Map.Height - Map.Thickness - player.Height;
 
             Rect searchArea = player.Rect;
             searchArea.Inflate(player.Speed * dt + 10, player.Speed * dt + 10);
@@ -421,7 +429,7 @@ namespace CombatWordle
 
         private void EditorMove(double dt)
         {
-            double pan = 500 * dt;
+            double pan = 1000 * dt;
             if (PressedKeys.Contains(Key.W) || PressedKeys.Contains(Key.Up)) CameraTransform.Y += pan;
             if (PressedKeys.Contains(Key.A) || PressedKeys.Contains(Key.Left)) CameraTransform.X += pan;
             if (PressedKeys.Contains(Key.D) || PressedKeys.Contains(Key.Right)) CameraTransform.X -= pan;
@@ -468,10 +476,9 @@ namespace CombatWordle
             int cellX = (int)Math.Floor(x / editorCellSize) * editorCellSize;
             int cellY = (int)Math.Floor(y / editorCellSize) * editorCellSize;
 
-            var obj = new Editor.EditorDTO((cellX, cellY), Brushes.Bisque);
-            if (editor.Add(obj))
-                QOL.D($"Placed block at {cellX}, {cellY}");
-            else QOL.D($"Failed to place block at {cellX}, {cellY}");
+            var obj = new Editor.EditorDTO((cellX, cellY), RedSliderText.Foreground);
+            editor.Add(obj);
+            QOL.D($"Placed block at {cellX}, {cellY}");
         }
 
         private void Update(double dt)
@@ -495,28 +502,41 @@ namespace CombatWordle
 
         private void OnRender(object sender, EventArgs e) => Update(CurrentFrame());
 
-        private void Start()
+        private async void Start()
         {
             StartMenu.Visibility = Visibility.Hidden;
             GameCanvas.Visibility = Visibility.Visible;
             DebugText.Visibility = Visibility.Visible;
 
-            if (gameMode)
+            if (quickStart) Map = new(12800, 12800);
+            else
             {
-                GameMode();
+                if (Map == null)
+                {
+                    StartMenu.Visibility = Visibility.Hidden;
+                    MapSetter.Visibility = Visibility.Visible;
+                    MapSizeSet = new();
+                    await MapSizeSet.Task;
+                }
             }
-            else if (editorMode)
-            {
-                EditorMode();
-            }
+
+            game = new GameState(Map);
+
+            GameCanvas.Children.Add(Map);
+            Canvas.SetLeft(Map, 0);
+            Canvas.SetTop(Map, 0);
+            Panel.SetZIndex(Map, 0);
+
+            if (gameMode) StartGame();
+            else if (editorMode) StartEditor();
 
             CompositionTarget.Rendering += OnRender;
         }
 
-        private void GameMode()
+        private void StartGame()
         {
             game.AddPlayer();
-            cellGrid = new GridHelper(cellSize, (int)map.Width, (int)map.Height, Brushes.Green, 0.5);
+            cellGrid = new GridHelper(cellSize, (int)Map.Width, (int)Map.Height, Brushes.Green, 0.5);
             GameCanvas.Children.Add(cellGrid);
             Panel.SetZIndex(cellGrid, 10);
 
@@ -524,20 +544,68 @@ namespace CombatWordle
             GameOverlay.Visibility = Visibility.Visible;
         }
 
-        private void EditorMode()
+        private void StartEditor()
         {
             editor = new(editorCellSize);
             GameCanvas.Children.Add(editor);
 
-            editorGrid = new GridHelper(editorCellSize, (int)map.Width, (int)map.Height, Brushes.White, 0.05);
+            editorGrid = new GridHelper(editorCellSize, (int)Map.Width, (int)Map.Height, Brushes.White, 0.05);
             GameCanvas.Children.Add(editorGrid);
             Panel.SetZIndex(editorGrid, 10);
 
-            CameraTransform.X = CameraTransform.X / CameraScale.ScaleX - map.Center.X + ActualWidth / 2;
-            CameraTransform.Y = CameraTransform.Y / CameraScale.ScaleY - map.Center.Y + ActualHeight / 2;
+            CameraTransform.X = CameraTransform.X / CameraScale.ScaleX - Map.Center.X + ActualWidth / 2;
+            CameraTransform.Y = CameraTransform.Y / CameraScale.ScaleY - Map.Center.Y + ActualHeight / 2;
 
             EditorSave.Visibility = Visibility.Visible;
             EditorOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void SetMapSizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (int.TryParse(MapWidthContent.Text, out int width)
+                && width >= 100
+                && width <= 20000
+                && int.TryParse(MapHeightContent.Text, out int height)
+                && height >= 100
+                && height <= 20000)
+            {
+                MapSetter.Visibility = Visibility.Hidden;
+                Map = new(width, height);
+                MapSizeSet?.TrySetResult(true);
+            }
+        }
+
+        private void ResetMapDimensions_Click(object sender, RoutedEventArgs e)
+        {
+            if (MapWidthContent is null || MapHeightContent is null) return;
+            MapWidthContent.Text = "12800";
+            MapHeightContent.Text = "12800";
+        }
+
+        private void MapWidthContent_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (int.TryParse(MapWidthContent.Text, out int width))
+                if (width >= 100 && width <= 20000)
+                {
+                    SetMapSizeButton.IsHitTestVisible = true;
+                    SetMapSizeButton.Foreground = Brushes.LightGreen;
+                    return;
+                }
+            SetMapSizeButton.IsHitTestVisible = false;
+            SetMapSizeButton.Foreground = Brushes.IndianRed;
+        }
+
+        private void MapHeightContent_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (int.TryParse(MapHeightContent.Text, out int height))
+                if (height >= 100 && height <= 20000)
+                {
+                    SetMapSizeButton.IsHitTestVisible = true;
+                    SetMapSizeButton.Foreground = Brushes.LightGreen;
+                    return;
+                }
+            SetMapSizeButton.IsHitTestVisible = false;
+            SetMapSizeButton.Foreground = Brushes.IndianRed;
         }
     }
 }

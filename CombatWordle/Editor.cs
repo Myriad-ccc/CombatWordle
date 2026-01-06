@@ -10,16 +10,7 @@
 
         public Editor(int cellSize) => CellSize = cellSize;
 
-        public bool Add(EditorDTO obj)
-        {
-            if (!EditorObjects.TryGetValue(obj.Cell, out _))
-            {
-                EditorObjects[obj.Cell] = obj;
-                return true;
-            }
-            return false;
-        }
-
+        public void Add(EditorDTO obj) => EditorObjects[obj.Cell] = obj;
         public void Remove((int x, int y) cell) => EditorObjects.Remove(cell);
 
         public void Update(Rect viewport)
@@ -41,11 +32,10 @@
                 {
                     if (EditorObjects.TryGetValue((r, c), out var obj))
                     {
-                        var pen = new Pen(obj.Color, 1);
-                        drawingContext.DrawRectangle(obj.Color, pen,
+                        drawingContext.DrawRectangle(obj.Color, null,
                             new Rect(
                                 new Point(obj.Cell.X, obj.Cell.Y),
-                                new Size(CellSize, CellSize)));
+                                new Size(CellSize + 2.5, CellSize + 2.5)));
                     }
                 }
             }

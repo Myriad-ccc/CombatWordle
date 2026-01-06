@@ -53,6 +53,34 @@
                 Orientation="Horizontal">
 
                 <Button
+                    x:Name="BackButton"
+                    Margin="2,0,0,0"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Background="Transparent"
+                    BorderThickness="2"
+                    Click="BackButton_Click"
+                    FontSize="48">
+                    <Viewbox Width="48" Height="48">
+                        <TextBlock
+                            FontSize="48"
+                            Foreground="#56D959"
+                            Text="←"
+                            TextAlignment="Center" />
+                    </Viewbox>
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <Button
                     x:Name="MinimizeButton"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Top"
@@ -63,7 +91,7 @@
                     <Viewbox Width="48" Height="48">
                         <TextBlock
                             FontSize="48"
-                            Foreground="Gray"
+                            Foreground="#4CDAE4"
                             Text="-"
                             TextAlignment="Center" />
                     </Viewbox>
@@ -91,7 +119,7 @@
                     <Viewbox Width="48" Height="48">
                         <TextBlock
                             FontSize="48"
-                            Foreground="Gray"
+                            Foreground="#b3251b"
                             Text="X"
                             TextAlignment="Center" />
                     </Viewbox>
@@ -120,7 +148,8 @@
                 <StackPanel
                     x:Name="StartMenu"
                     HorizontalAlignment="Center"
-                    VerticalAlignment="Center">
+                    VerticalAlignment="Center"
+                    Visibility="Visible">
 
                     <Button
                         x:Name="PlayButton"
@@ -173,6 +202,83 @@
                     </TransformGroup>
                 </Canvas.RenderTransform>
             </Canvas>
+
+            <Grid x:Name="MapSetter" Visibility="Hidden">
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="230" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="230" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock
+                    Grid.Row="0"
+                    Grid.Column="1"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="82"
+                    Text="Set map size" />
+
+                <StackPanel
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    Orientation="Vertical">
+                    <TextBlock FontSize="64" Text="Width:" />
+                    <TextBox
+                        x:Name="MapWidthContent"
+                        HorizontalAlignment="Center"
+                        BorderThickness="0"
+                        Background="Transparent"
+                        FontSize="60"
+                        Foreground="White"
+                        TextChanged="MapWidthContent_TextChanged"/>
+                </StackPanel>
+                <StackPanel
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Orientation="Vertical">
+                    <TextBlock FontSize="64" Text="Height:" />
+                    <TextBox
+                        x:Name="MapHeightContent"
+                        HorizontalAlignment="Center"
+                        BorderThickness="0"
+                        Background="Transparent"
+                        FontSize="60"
+                        Foreground="White"
+                        TextChanged="MapHeightContent_TextChanged"/>
+                </StackPanel>
+                <StackPanel
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Bottom"
+                    Orientation="Vertical">
+                    <Button
+                        x:Name="ResetMapDimensions"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Content="↻"
+                        FontSize="54"
+                        Click="ResetMapDimensions_Click"
+                        Foreground="White" />
+                    <Button
+                        x:Name="SetMapSizeButton"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Content="Set"
+                        FontSize="54"
+                        Foreground="LightGreen"
+Click="SetMapSizeButton_Click"/>
+                </StackPanel>
+            </Grid>
 
             <Grid x:Name="GeneralUI">
                 <TextBlock
