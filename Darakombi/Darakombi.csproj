@@ -9,13 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Assets\Icon.ico" />
-    <None Remove="Assets\TileEmpty.png" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Resource Include="Assets\Icon.ico" />
     <Resource Include="Assets\TileEmpty.png" />
+    <Resource Include="Assets\VCR_OSD_MONO_1.001.ttf" />
   </ItemGroup>
 
 </Project>

@@ -1,8 +1,6 @@
 ﻿using System.Reflection;
-using System.Security.Policy;
-using System.Windows.Shapes;
 
-namespace CombatWordle
+namespace Darakombi
 {
     public static class QOL
     {

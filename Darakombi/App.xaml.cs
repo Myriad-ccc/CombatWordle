@@ -2,7 +2,7 @@
 using System.Data;
 using System.Windows;
 
-namespace CombatWordle
+namespace Darakombi
 {
     /// <summary>
     /// Interaction logic for App.xaml

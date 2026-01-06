@@ -1,6 +1,6 @@
 ﻿using System.Windows.Shapes;
 
-namespace CombatWordle
+namespace Darakombi
 {
     public class SceneManager
     {

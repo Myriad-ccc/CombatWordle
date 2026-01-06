@@ -1,4 +1,4 @@
-﻿namespace CombatWordle
+﻿namespace Darakombi
 {
     public class EntityData
     {

@@ -1,5 +1,5 @@
 ﻿
-namespace CombatWordle
+namespace Darakombi
 {
     public class Map : Border
     {
